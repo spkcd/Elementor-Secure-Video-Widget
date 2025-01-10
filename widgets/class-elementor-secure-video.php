@@ -14,7 +14,7 @@ class Elementor_Secure_Video extends \Elementor\Widget_Base {
     }
 
     public function get_icon() {
-        return 'eicon-video-playlist'; // or another suitable icon
+        return 'eicon-video-playlist';
     }
 
     public function get_categories() {
@@ -22,7 +22,7 @@ class Elementor_Secure_Video extends \Elementor\Widget_Base {
     }
 
     protected function register_controls() {
-        // 1) Video Settings Section
+        // 1) Video Settings
         $this->start_controls_section(
             'video_settings_section',
             [
@@ -47,7 +47,7 @@ class Elementor_Secure_Video extends \Elementor\Widget_Base {
         $this->add_control(
             'width',
             [
-                'label'   => __( 'Width', 'esvw-widget' ),
+                'label'   => __( 'Video Width', 'esvw-widget' ),
                 'type'    => \Elementor\Controls_Manager::NUMBER,
                 'default' => $default_width,
             ]
@@ -55,9 +55,18 @@ class Elementor_Secure_Video extends \Elementor\Widget_Base {
         $this->add_control(
             'height',
             [
-                'label'   => __( 'Height', 'esvw-widget' ),
+                'label'   => __( 'Video Height', 'esvw-widget' ),
                 'type'    => \Elementor\Controls_Manager::NUMBER,
                 'default' => $default_height,
+            ]
+        );
+
+        $this->add_control(
+            'poster_image',
+            [
+                'label'   => __( 'Poster Image', 'esvw-widget' ),
+                'type'    => \Elementor\Controls_Manager::MEDIA,
+                'default' => [ 'url' => '' ],
             ]
         );
 
@@ -144,14 +153,13 @@ class Elementor_Secure_Video extends \Elementor\Widget_Base {
 
         // 1) Grab the expiring URL settings from WP options
         $secret_key         = get_option( 'esvw_secret_key', 'mySuperSecretKey123' );
-        $protected_base_url = get_option( 'esvw_protected_base_url', 'https://yoursite.com/ppv/' );
+        $protected_base_url = get_option( 'esvw_protected_base_url', 'https://contactcustody.kcdev.site/ppv/' );
         $expiry_seconds     = get_option( 'esvw_expiry_seconds', 3600 );
 
         // 2) Build the expiring link
         $expires   = time() + (int) $expiry_seconds;
         $uploadUrl = $settings['video_file']['url'];
-        // e.g. https://yoursite.com/ppv/abc123xyz.mp4
-        $fileName  = basename( parse_url( $uploadUrl, PHP_URL_PATH ) );
+        $fileName  = basename( parse_url( $uploadUrl, PHP_URL_PATH ) ); // e.g. hashedName.mp4
 
         $token     = md5( $secret_key . $fileName . $expires );
         $video_url = $protected_base_url . $fileName . '?st=' . $token . '&e=' . $expires;
@@ -168,7 +176,13 @@ class Elementor_Secure_Video extends \Elementor\Widget_Base {
             esc_attr( $settings['description_color'] )
         );
 
-        // 4) Output the HTML
+        // 4) Poster Image
+        $poster_url = '';
+        if ( ! empty( $settings['poster_image']['url'] ) ) {
+            $poster_url = $settings['poster_image']['url'];
+        }
+
+        // 5) Output the HTML
         ?>
         <div class="esvw-secure-video-widget" style="position:relative;">
             <?php if ( ! empty( $settings['title_text'] ) ) : ?>
@@ -190,6 +204,7 @@ class Elementor_Secure_Video extends \Elementor\Widget_Base {
                 controlsList="nodownload"
                 disablePictureInPicture
                 oncontextmenu="return false;"
+                poster="<?php echo esc_url( $poster_url ); ?>"
             >
                 <source src="<?php echo esc_url( $video_url ); ?>" type="video/mp4">
                 <?php esc_html_e( 'Your browser does not support the video tag.', 'esvw-widget' ); ?>

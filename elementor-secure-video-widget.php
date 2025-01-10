@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Elementor Secure Video Widget
  * Plugin URI:  https://sparkwebstudio.com/
- * Description: Provides an Elementor widget to embed self-hosted videos with expiring URLs (secure), configurable defaults, and no-download controls.
- * Version:     1.2
+ * Description: Provides an Elementor widget to embed self-hosted videos with expiring URLs, no-download controls, a poster image, and a button to regenerate the secret key in settings.
+ * Version:     1.3
  * Author:      SPARKWEB Studio
  * Author URI:  https://sparkwebstudio.com/
  * License:     GPL2 or later
@@ -13,8 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-// Define version and slug (for reference)
-define( 'ESVW_VERSION', '1.2' );
+// Define version
+define( 'ESVW_VERSION', '1.3' );
 define( 'ESVW_SLUG',    'elementor-secure-video-widget' );
 
 /**
@@ -65,7 +65,7 @@ function esvw_register_settings() {
     register_setting( 'esvw_settings_group', 'esvw_protected_base_url', [
         'type'              => 'string',
         'sanitize_callback' => 'esc_url_raw',
-        'default'           => 'https://yoursite.com/ppv/',
+        'default'           => 'https://contactcustody.kcdev.site/ppv/',
     ] );
     register_setting( 'esvw_settings_group', 'esvw_expiry_seconds', [
         'type'              => 'integer',
@@ -76,12 +76,25 @@ function esvw_register_settings() {
 add_action( 'admin_init', 'esvw_register_settings' );
 
 /**
- * 4) Render the Settings Page
+ * 4) Render the Settings Page (including "Regenerate Secret Key" button)
  */
 function esvw_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         return;
     }
+
+    // Check if "Regenerate Secret Key" button was pressed
+    if ( isset( $_POST['esvw_regenerate_key'] ) && check_admin_referer( 'esvw_regenerate_key_action', 'esvw_regenerate_key_nonce' ) ) {
+        // Generate a random 32-char secret key (letters+numbers)
+        $new_secret = wp_generate_password( 32, false, false );
+        update_option( 'esvw_secret_key', $new_secret );
+        // Possibly show an admin notice or just let them see the new key in the field
+        add_settings_error( 'esvw_settings', 'esvw_key_regenerated', 'Secret key regenerated successfully!', 'updated' );
+    }
+
+    // Show any settings errors
+    settings_errors( 'esvw_settings' );
+
     ?>
     <div class="wrap">
         <h1>Secure Video Widget Settings</h1>
@@ -109,16 +122,34 @@ function esvw_render_settings_page() {
                     <td>
                         <input type="text" name="esvw_secret_key"
                                value="<?php echo esc_attr( get_option( 'esvw_secret_key', 'mySuperSecretKey123' ) ); ?>"
-                               style="width: 300px;" />
+                               style="width: 320px;" />
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"></th>
+                    <td>
+                        <?php 
+                        // Nonce for regenerating key
+                        wp_nonce_field( 'esvw_regenerate_key_action', 'esvw_regenerate_key_nonce' ); 
+                        ?>
+                        <button type="submit" name="esvw_regenerate_key" class="button">
+                            Regenerate Secret Key
+                        </button>
+                        <p class="description">
+                            Click to automatically generate a new random key. This may affect any external scripts relying on the old key.
+                        </p>
                     </td>
                 </tr>
                 <tr>
                     <th scope="row">Protected Base URL</th>
                     <td>
                         <input type="url" name="esvw_protected_base_url"
-                               value="<?php echo esc_attr( get_option( 'esvw_protected_base_url', 'https://yoursite.com/ppv/' ) ); ?>"
-                               style="width: 300px;" />
-                        <p class="description">E.g. https://example.com/ppv/</p>
+                               value="<?php echo esc_attr( get_option( 'esvw_protected_base_url', 'https://contactcustody.kcdev.site/ppv/' ) ); ?>"
+                               style="width: 320px;" />
+                        <p class="description">
+                            E.g. https://contactcustody.kcdev.site/ppv/
+                            <br>Ensure your .htaccess or check_access.php enforces token checks here.
+                        </p>
                     </td>
                 </tr>
                 <tr>
