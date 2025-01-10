@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Elementor Secure Video Widget
  * Plugin URI:  https://sparkwebstudio.com/
- * Description: Provides an Elementor widget to embed self-hosted videos with expiring URLs (secure), now with settings for default size & expiring URL configuration, plus title & description controls.
- * Version:     1.1
+ * Description: Provides an Elementor widget to embed self-hosted videos with expiring URLs (secure), configurable defaults, and no-download controls.
+ * Version:     1.2
  * Author:      SPARKWEB Studio
  * Author URI:  https://sparkwebstudio.com/
  * License:     GPL2 or later
@@ -13,145 +13,120 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-define( 'ESV_PLUGIN_VERSION', '1.1' );
-define( 'ESV_PLUGIN_SLUG',    'elementor-secure-video-widget' );
+// Define version and slug (for reference)
+define( 'ESVW_VERSION', '1.2' );
+define( 'ESVW_SLUG',    'elementor-secure-video-widget' );
 
 /**
- * 1. REGISTER THE ELEMENTOR WIDGET
+ * 1) Load the Elementor Widget class
  */
-function esv_register_elementor_widget( $widgets_manager ) {
+function esvw_register_elementor_widget( $widgets_manager ) {
     require_once( __DIR__ . '/widgets/class-elementor-secure-video.php' );
     $widgets_manager->register( new \Elementor_Secure_Video() );
 }
-add_action( 'elementor/widgets/register', 'esv_register_elementor_widget' );
+add_action( 'elementor/widgets/register', 'esvw_register_elementor_widget' );
 
 /**
- * 2. ADD A SETTINGS PAGE FOR EXPIRING URL + DEFAULT VIDEO DIMENSIONS
+ * 2) Add a Settings Page (under Settings → Secure Video Widget)
  */
-function esv_add_settings_page() {
+function esvw_add_settings_page() {
     add_options_page(
-        'Secure Video Widget Settings',    // Page title
-        'Secure Video Widget',             // Menu title
-        'manage_options',                  // Capability
-        'esv_settings',                    // Menu slug
-        'esv_render_settings_page'         // Callback
+        'Secure Video Widget Settings',
+        'Secure Video Widget',
+        'manage_options',
+        'esvw_settings',
+        'esvw_render_settings_page'
     );
 }
-add_action( 'admin_menu', 'esv_add_settings_page' );
+add_action( 'admin_menu', 'esvw_add_settings_page' );
 
 /**
- * 3. REGISTER SETTINGS FIELDS
+ * 3) Register Settings (default size + expiring URL options)
  */
-function esv_register_settings() {
-    // Default video size
-    register_setting( 'esv_settings_group', 'esv_default_width', [
+function esvw_register_settings() {
+    // Default video dimensions
+    register_setting( 'esvw_settings_group', 'esvw_default_width', [
         'type'              => 'integer',
         'sanitize_callback' => 'absint',
         'default'           => 500,
     ] );
-    register_setting( 'esv_settings_group', 'esv_default_height', [
+    register_setting( 'esvw_settings_group', 'esvw_default_height', [
         'type'              => 'integer',
         'sanitize_callback' => 'absint',
         'default'           => 260,
     ] );
 
-    // Expiring URL Options
-    register_setting( 'esv_settings_group', 'esv_secret_key', [
+    // Expiring URL: Secret key, Base URL, Expiry time
+    register_setting( 'esvw_settings_group', 'esvw_secret_key', [
         'type'              => 'string',
         'sanitize_callback' => 'sanitize_text_field',
         'default'           => 'mySuperSecretKey123',
     ] );
-    register_setting( 'esv_settings_group', 'esv_protected_base_url', [
+    register_setting( 'esvw_settings_group', 'esvw_protected_base_url', [
         'type'              => 'string',
         'sanitize_callback' => 'esc_url_raw',
-        'default'           => 'https://contactcustody.kcdev.site/ppv/',
+        'default'           => 'https://yoursite.com/ppv/',
     ] );
-    register_setting( 'esv_settings_group', 'esv_expiry_seconds', [
+    register_setting( 'esvw_settings_group', 'esvw_expiry_seconds', [
         'type'              => 'integer',
         'sanitize_callback' => 'absint',
         'default'           => 3600, // 1 hour
     ] );
 }
-add_action( 'admin_init', 'esv_register_settings' );
+add_action( 'admin_init', 'esvw_register_settings' );
 
 /**
- * 4. RENDER THE SETTINGS PAGE
+ * 4) Render the Settings Page
  */
-function esv_render_settings_page() {
+function esvw_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         return;
     }
-
     ?>
     <div class="wrap">
-        <h1><?php esc_html_e( 'Secure Video Widget Settings', 'esv-widget' ); ?></h1>
+        <h1>Secure Video Widget Settings</h1>
         <form method="post" action="options.php">
-            <?php settings_fields( 'esv_settings_group' ); ?>
-            <?php do_settings_sections( 'esv_settings_group' ); ?>
+            <?php settings_fields( 'esvw_settings_group' ); ?>
+            <?php do_settings_sections( 'esvw_settings_group' ); ?>
 
             <table class="form-table">
-                <!-- Default Video Dimensions -->
-                <tr valign="top">
-                    <th scope="row"><?php esc_html_e( 'Default Video Width', 'esv-widget' ); ?></th>
+                <tr>
+                    <th scope="row">Default Video Width</th>
                     <td>
-                        <input
-                            type="number"
-                            name="esv_default_width"
-                            value="<?php echo esc_attr( get_option( 'esv_default_width', 500 ) ); ?>"
-                            min="1"
-                        />
+                        <input type="number" name="esvw_default_width"
+                               value="<?php echo esc_attr( get_option( 'esvw_default_width', 500 ) ); ?>" />
                     </td>
                 </tr>
-                <tr valign="top">
-                    <th scope="row"><?php esc_html_e( 'Default Video Height', 'esv-widget' ); ?></th>
+                <tr>
+                    <th scope="row">Default Video Height</th>
                     <td>
-                        <input
-                            type="number"
-                            name="esv_default_height"
-                            value="<?php echo esc_attr( get_option( 'esv_default_height', 260 ) ); ?>"
-                            min="1"
-                        />
+                        <input type="number" name="esvw_default_height"
+                               value="<?php echo esc_attr( get_option( 'esvw_default_height', 260 ) ); ?>" />
                     </td>
                 </tr>
-
-                <!-- Expiring URL Settings -->
-                <tr valign="top">
-                    <th scope="row"><?php esc_html_e( 'Secret Key', 'esv-widget' ); ?></th>
+                <tr>
+                    <th scope="row">Secret Key</th>
                     <td>
-                        <input
-                            type="text"
-                            name="esv_secret_key"
-                            value="<?php echo esc_attr( get_option( 'esv_secret_key', 'mySuperSecretKey123' ) ); ?>"
-                            style="width: 300px;"
-                        />
+                        <input type="text" name="esvw_secret_key"
+                               value="<?php echo esc_attr( get_option( 'esvw_secret_key', 'mySuperSecretKey123' ) ); ?>"
+                               style="width: 300px;" />
                     </td>
                 </tr>
-                <tr valign="top">
-                    <th scope="row"><?php esc_html_e( 'Protected Base URL', 'esv-widget' ); ?></th>
+                <tr>
+                    <th scope="row">Protected Base URL</th>
                     <td>
-                        <input
-                            type="url"
-                            name="esv_protected_base_url"
-                            value="<?php echo esc_attr( get_option( 'esv_protected_base_url', 'https://contactcustody.kcdev.site/ppv/' ) ); ?>"
-                            style="width: 300px;"
-                        />
-                        <p class="description">
-                            <?php esc_html_e( 'e.g. https://yourdomain.com/ppv/', 'esv-widget' ); ?>
-                        </p>
+                        <input type="url" name="esvw_protected_base_url"
+                               value="<?php echo esc_attr( get_option( 'esvw_protected_base_url', 'https://yoursite.com/ppv/' ) ); ?>"
+                               style="width: 300px;" />
+                        <p class="description">E.g. https://example.com/ppv/</p>
                     </td>
                 </tr>
-                <tr valign="top">
-                    <th scope="row"><?php esc_html_e( 'Expiry Time (seconds)', 'esv-widget' ); ?></th>
+                <tr>
+                    <th scope="row">Expiry Time (seconds)</th>
                     <td>
-                        <input
-                            type="number"
-                            name="esv_expiry_seconds"
-                            value="<?php echo esc_attr( get_option( 'esv_expiry_seconds', 3600 ) ); ?>"
-                            min="1"
-                        />
-                        <p class="description">
-                            <?php esc_html_e( 'Number of seconds before the video link expires (e.g., 3600 = 1 hour).', 'esv-widget' ); ?>
-                        </p>
+                        <input type="number" name="esvw_expiry_seconds"
+                               value="<?php echo esc_attr( get_option( 'esvw_expiry_seconds', 3600 ) ); ?>" />
+                        <p class="description">E.g. 3600 = 1 hour</p>
                     </td>
                 </tr>
             </table>
